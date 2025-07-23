@@ -1,30 +1,51 @@
-HOW TO SETUP INFRASTRUCTURE AND RUN INFRASTRUCTURE
+# HOW TO SETUP INFRASTRUCTURE AND RUN INFRASTRUCTURE
 
-SETUP OF INFRASTRUCTURE IN PROMETHEUS
+## SETUP OF INFRASTRUCTURE IN PROMETHEUS
 
-Installing Prometheus
-1) follow this url to install the Prometheus i.e https://www.cherryservers.com/blog/install-prometheus-ubuntu
+---
 
-Installing Grafana
-2) follow this url to install the Grafana i.e https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-grafana-on-ubuntu-22-04
+### 📦 Installing Prometheus
 
-Installing Prometheus Node Exporter
-3) follow this url to install the node exporter https://www.devopstricks.in/installing-node-exporter-on-ubuntu/
+Follow this URL to install Prometheus:  
+👉 https://www.cherryservers.com/blog/install-prometheus-ubuntu
 
-Installing Mysql database on the server
-4) https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-22-04
+---
 
-Installing Mysql exporter
-Used Both urls to install and troubleshoot mysqld-exporter
-5) https://installati.one/install-prometheus-mysqld-exporter-ubuntu-22-04/
-6) https://www.devopsschool.com/blog/install-and-configure-prometheus-mysql-exporter/
+### 📊 Installing Grafana
 
-Installing log collector fluent-bit
-7) snap install fluent-bit
+Follow this URL to install Grafana:  
+👉 https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-grafana-on-ubuntu-22-04
 
-Configure the fluent-bit with the below file
-8)sudo mkdir /etc/fluent 
-9)sudo vi /etc/fluent-bit/fluent-bit.conf
+---
+
+### 📈 Installing Prometheus Node Exporter
+
+👉 https://www.devopstricks.in/installing-node-exporter-on-ubuntu/
+
+---
+
+### 🛢️ Installing MySQL Database
+
+👉 https://www.digitalocean.com/community/tutorials/how-to-install-mysql-on-ubuntu-22-04
+
+---
+
+### 📦 Installing MySQL Exporter
+
+Use both URLs below to install and troubleshoot `mysqld-exporter`:  
+- https://installati.one/install-prometheus-mysqld-exporter-ubuntu-22-04/  
+- https://www.devopsschool.com/blog/install-and-configure-prometheus-mysql-exporter/
+
+---
+
+### 📥 Installing Log Collector Fluent-Bit
+
+```bash
+snap install fluent-bit
+
+sudo mkdir /etc/fluent
+sudo vi /etc/fluent-bit/fluent-bit.conf
+
 
 [SERVICE]
     Flush        1
@@ -33,43 +54,37 @@ Configure the fluent-bit with the below file
     Parsers_File parsers.conf
 
 [INPUT]
-    Name   tail
-    Path   /var/log/flask_app.log
-    Tag    flask_app
+    Name         tail
+    Path         /var/log/flask_app.log
+    Tag          flask_app
 
 [INPUT]
-    Name   tail
-    Path   /var/log/syslog
-    Tag    system_logs
+    Name         tail
+    Path         /var/log/syslog
+    Tag          system_logs
 
 [INPUT]
-    Name   tail
-    Path   /var/log/nginx/access.log
-    Tag    access_logs
+    Name         tail
+    Path         /var/log/nginx/access.log
+    Tag          access_logs
 
 [OUTPUT]
-    Name   loki
-    Match  *
-    Host   localhost
-    Port   3100
-    Labels job=fluentbit,source=$TAG
+    Name         loki
+    Match        *
+    Host         localhost
+    Port         3100
+    Labels       job=fluentbit,source=$TAG
 
 
-Installing loki 
-Create the below directories
-9)  sudo mkdir /etc/loki
-10) sudo mkdir /etc/loki/boltdb-cache
-11) sudo mkdir /etc/loki/chunks
-12) sudo mkdir /etc/loki/compactor
-13) sudo mkdir /etc/loki/index
-14) sudo mkdir /etc/loki/loki-local-config.yaml
-15) sudo mkdir /etc/loki/wal
+📦 Installing Loki
+Create directories:
+``` bash
+sudo mkdir -p /etc/loki/{boltdb-cache,chunks,compactor,index,wal}
+touch /etc/loki/loki-local-config.yaml
+sudo chown -R $USER:$USER /etc/loki
 
-change the ownership by below command
-16) sudo chown -R /etc/loki
 
-Now add the following configuration in /etc/loki/loki-local-config.yaml
-17) vi /etc/loki/loki-local-config.yaml
+Create the config file /etc/loki/loki-local-config.yaml:
 
 auth_enabled: false
 
@@ -86,8 +101,8 @@ ingester:
     ring:
       kvstore:
         store: inmemory
-      replication_factor: 1
-    final_sleep: 0s
+    replication_factor: 1
+  final_sleep: 0s
   chunk_idle_period: 5m
   chunk_retain_period: 30s
   max_transfer_retries: 0
@@ -127,39 +142,40 @@ compactor:
   working_directory: /etc/loki/compactor
   shared_store: filesystem
 
-
-Install docker on the server
-18) sudo apt install docker.io -y
-
-Now Run the loki by using below docker command
-19)  docker run -d --name=loki -p 3100:3100   -v /etc/loki:/etc/loki   grafana/loki:2.9.0   -config.file=/etc/loki/loki-local-config.yaml
-
-Also configure the targets in /etc/prometheus/prometheus.yml
-Add the Ports i.e 9090, 3000 in the security groups
-
-Now Run the prometheus server, grafana server
-20) Prometheus  http://IP:9090
-21) Grafana     http://IP:3000
-
-
-Now login Grafana Import the dasboards like nodeexporter, mysqldexporter, loki,  and add the datasources i.e prometheus and loki 
+Run Loki using Docker:
+```bash
+sudo apt install docker.io -y
+docker run -d --name=loki -p 3100:3100 -v /etc/loki:/etc/loki grafana/loki:2.9.0 -config.file=/etc/loki/loki-local-config.yaml
 
 
 
-RUNNING THE INFRASTRUCTURE in MY SERVER
-
-  1) sudo su - root
-  2) cd PrometheusRequestApp
-     Run the Python flaskapp
-  3) nohup python3 app.py >/dev/null 2>&1 &
-  4) sudo systemctl restart prometheus
-  5) sudo systemctl restart grafana-server
-  6) sudo systemctl restart prometheus-node-exporter
-  7) sudo systemctl restart prometheus-mysqld-exporter
+ Configure Prometheus
+Edit /etc/prometheus/prometheus.yml to add targets like:
+- job_name: 'node_exporter'
+  static_configs:
+    - targets: ['localhost:9100']
 
 
- 
+ Run Services
+```bash
+# Run the Flask app
+cd PrometheusRequestApp
+nohup python3 app.py >/dev/null 2>&1 &
+
+# Restart Prometheus components
+sudo systemctl restart prometheus
+sudo systemctl restart grafana-server
+sudo systemctl restart prometheus-node-exporter
+sudo systemctl restart prometheus-mysqld-exporter
 
 
+Access Services
+Prometheus: http://your-server-ip:9090
 
+Grafana: http://your-server-ip:3000
 
+In Grafana:
+
+Import dashboards for node exporter, MySQL exporter, and Loki
+
+Add data sources: Prometheus and Loki
